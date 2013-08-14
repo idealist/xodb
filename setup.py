@@ -16,7 +16,7 @@ from setuptools import setup, find_packages
 
 setup(
   name="xodb",
-  version="0.6.2",
+  version="0.6.2-idealist",
   packages=find_packages(exclude=['tests.*', 'tests', '.virt']),
 
   tests_require=['nose', 'translitcodec'],
@@ -29,10 +29,10 @@ setup(
   license='MIT License',
   url='https://github.com/michelp/xodb',
       install_requires=[
-        'flatland==dev',
+        'flatland',
         'translitcodec',
         'nose',
-	'pyzmq',
+        'pyzmq',
         'nilsimsa',
         ],
   classifiers=[
