@@ -1,4 +1,5 @@
 import time
+
 import string
 import logging
 from functools import wraps
@@ -89,7 +90,9 @@ class Record(object):
             # TODO: date, datetime
             if sort and sort in ('integer', 'string'):
                 num = self._xodb_db.values[name]
-                val = self._xodb_document.get_value(num)
+                def get_val():
+                    return self._xodb_document.get_value(num)
+                val = self._xodb_db.retry_if_modified(get_val, 3)
                 if sort == 'integer':
                     val = xapian.sortable_unserialise(val)
                 return val
@@ -863,6 +866,7 @@ class Database(object):
               disimilate=False,
               disimilate_field='nilsimsa',
               disimilate_threshold=100,
+              disimilate_window=10,
               parser_flags=default_parser_flags,
               default_op=Query.OP_AND,
               retry_limit=RETRY_LIMIT):
@@ -894,8 +898,10 @@ class Database(object):
 
         tries = 0
         seen = set()
-        disimilator = set()
-        sim_comp = nilsimsa.compare_hexdigests
+        disimilator = LRUDict(limit=disimilate_window)
+        def _simhash_distance(hash1, hash2):
+            return 128 - nilsimsa.compare_hexdigests(hash1, hash2)
+
         while True:
             try:
                 # _build_mset may retry internally on DatabaseError
@@ -914,15 +920,6 @@ class Database(object):
                         seen.add(docid)
                         yield doc
                     else:
-                        # retry getting the actual document data
-                        op = lambda: self.backend.get_document(docid).get_data()
-                        try:
-                            data = self.retry_if_modified(op, retry_limit)
-                        except DocNotFoundError:
-                            logger.warning(
-                                "Document %d is gone, skipping.", docid)
-                            continue
-                        typ, data = loads(data)
                         seen.add(docid)
                         record = self.record_factory(doc,
                                                      record.percent,
@@ -935,11 +932,13 @@ class Database(object):
                             yield_it = True
                             rhash = getattr(record, disimilate_field, None)
                             if rhash:
-                                if any((sim_comp(rhash, h) > disimilate_threshold)
-                                       for h in set(disimilator)):
+                                if rhash in disimilator or any(
+                                    (_simhash_distance(rhash, h)
+                                     < disimilate_threshold)
+                                       for h in disimilator):
                                     yield_it = False
                             if yield_it:
-                                disimilator.add(rhash)
+                                disimilator[rhash] = True
                                 yield record
                         else:
                             yield record
@@ -1071,9 +1070,9 @@ class Database(object):
                     subq, tail, language, echo,
                     default_op, parser_flags,
                     retry_limit=retry_limit)
-                results[(name, score)] = r
+                results[name] = (score, r)
             else:
-                results[(name, score)] = score
+                results[name] = score
         return OrderedDict(sorted(results.items(), key=lambda i: i[0][1], reverse=True))
 
     @reconnector
