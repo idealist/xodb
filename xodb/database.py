@@ -78,9 +78,13 @@ class Record(object):
 
     @lazy_property
     def _xodb_schema(self):
-        typ, data = loads(self._xodb_document.get_data())
-        self._loaded = True
-        return _lookup_schema(typ).from_flat(data)
+
+        def get_schema():
+            typ, data = loads(self._xodb_document.get_data())
+            self._loaded = True
+            return _lookup_schema(typ).from_flat(data)
+
+        return self._xodb_db.retry_if_modified(get_schema, RETRY_LIMIT)
 
     def __getattr__(self, name):
         if self._xodb_db.use_values and not self._loaded:
