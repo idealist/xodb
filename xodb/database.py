@@ -230,7 +230,8 @@ def query_counter(func):
         try:
             if not hasattr(db, 'query_count'):
                 db.query_count = 0
-            db.query_count += 1
+            else:
+                db.query_count += 1
             for x in func(db, *args, **kwargs):
                 yield x
         finally:
@@ -904,7 +905,7 @@ class Database(object):
         # Only reopen the database if this is the only query.
         # Re-opening the database will invalidate the parent Enquire
         # as they share a reference to the backend.
-        if self.query_count == 1:
+        if self.query_count == 0:
             if echo:
                 print 'Reopening'
             self.reopen()
