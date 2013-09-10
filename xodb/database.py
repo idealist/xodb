@@ -234,7 +234,7 @@ def query_counter(func):
             for x in func(db, *args, **kwargs):
                 yield x
         finally:
-            db.query_count -= db.query_count
+            db.query_count -= 1
     return counter
 
 
