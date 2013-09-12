@@ -80,7 +80,14 @@ class Record(object):
     def _xodb_schema(self):
 
         def get_schema():
-            typ, data = loads(self._xodb_document.get_data())
+            try:
+                json = self._xodb_document.get_data()
+            except xapian.DatabaseError:
+                # _xodb_document has a pointer to a closed database
+                docid = self._xodb_document.get_docid()
+                self._xodb_document = self.backend.get_document(docid)
+                raise
+            typ, data = loads(json)
             self._loaded = True
             return _lookup_schema(typ).from_flat(data)
 
