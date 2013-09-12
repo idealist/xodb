@@ -16,7 +16,7 @@ from setuptools import setup, find_packages
 
 setup(
   name="xodb",
-  version="0.6.3.3-idealist",
+  version="0.6.3.4-idealist",
   packages=find_packages(exclude=['tests.*', 'tests', '.virt']),
 
   tests_require=['nose', 'translitcodec'],
